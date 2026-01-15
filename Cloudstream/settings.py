@@ -11,10 +11,12 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+load_dotenv(BASE_DIR / '.env')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -27,6 +29,18 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+aws_access_key_id='ASIAW3MD7KSFBTHCTZTF'
+aws_secret_access_key='omZzsgvxxdTXFhQtm57Ti5dO04dOwpQaUv6llyyA'
+aws_session_token='IQoJb3JpZ2luX2VjEHIaCXVzLXdlc3QtMiJIMEYCIQD5nmeCVZ7gxq80XpFIeet+tIqhp5nOSf8aBTytQEV4aAIhAIKoSJVdKRS8r/jlZx2mJ4oZrB3fb1fn4XBD29I7huHLKq4CCDoQABoMNDcxMTEyNTY5OTk0IgxYKA7A3FQKAbOk5RcqiwL4qm0zXWmPfh6fLorTI+1NZvnBcyYtxWfdnawV+6AfPGi6fG627a3S/8YIgbgOcmI3B5aouwlxPf0kUn3wAT6cta9+Jr3Go/I0MRDR2jfF3ba9qXSCG2EFIkAclZi1xoklXgSXwGgarMyoLb3FVy8FyNitN7X9OWS7tbnu0WglN3RCdOVsH/dQP9D+JgtbK3WomuSEgc1GadU9CGHKZspV1Bexsqvly+ToniCwaph536HhLXsPaJq853nXKt2C7IA5j5HonZR3EAuE+OHyFUXqclM7EUdoN9A+P5qSHCmHICHQlY7v4iE2RiDxlsV4KJVwQH4Q+89rCbVPjMtp+5MOJm1rVmkPaJ5Qcl0wgcOkywY6nAGuwJENEniS5310GA203ja4WQF0uqCxS9v6GMhZXMEPA8Ywu8IGaEs4gPAMZi+0nGxtCvNqtP22jr3RLMHhNoPCRS68cPCPZihfZ9CvMppxQh4KVElYOUeulzX1nUwZM0xZkyzWLGKDFbIIz6Lt3Roiw7IUXzQ5svBU9Oxi0rdOPji3cQ45X8BgPx1CKm4T6OpEDkTirlK8eYtRkeI='
+AWS_ACCESS_KEY_ID = aws_access_key_id
+AWS_SECRET_ACCESS_KEY = aws_secret_access_key
+AWS_SESSION_TOKEN = aws_session_token
+AWS_REGION = 'us-east-1' # Check your actual region
+DYNAMO_TABLE = 'CloudStreamData'
+AWS_RAW_BUCKET = 'vinayrawvidscloudstream'      # The bucket you upload to
+AWS_PROCESSED_BUCKET = 'vinayfinalvidscloudstream' # The bucket you watch from
+
+# settings.py
 
 # Application definition
 
@@ -55,7 +69,7 @@ ROOT_URLCONF = 'Cloudstream.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -118,7 +132,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"

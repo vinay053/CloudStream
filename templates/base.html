@@ -1,0 +1,131 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Cloud Stream{% endblock %}</title>
+    
+    <!-- Fonts: Inter (Clean, Modern) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+    <!-- MOUSE GLOW ELEMENT -->
+    <div class="mouse-glow"></div>
+
+    <!-- TOP NAVBAR -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <i class="fa-solid fa-bars menu-btn" id="menuToggle"></i>
+            
+            <!-- CUSTOM LOGO PLACEHOLDER -->
+            <a href="{% url 'home' %}" class="logo-container">
+                <img src="{% static 'images/logo.png' %}" alt="CloudStream" class="custom-logo"> 
+            </a>
+        </div>
+
+        <div class="nav-center">
+            <div class="search-bar">
+                <input type="text" placeholder="Search videos...">
+                <button><i class="fa-solid fa-magnifying-glass"></i></button>
+            </div>
+        </div>
+        
+        <div class="nav-right">
+            {% if request.session.user_email %}
+                <a href="{% url 'get_upload_url' %}" class="action-icon" title="Upload">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                </a>
+                
+                <div class="user-profile">
+                    <!-- Initials Avatar -->
+                    <div class="avatar">{{ request.session.channel_name|slice:":1"|upper }}</div>
+                </div>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn-primary">Login</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="layout">
+        
+        <!-- VERTICAL SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <a href="{% url 'home' %}" class="nav-link active">
+                    <i class="fa-solid fa-house"></i> <span>Home</span>
+                </a>
+                <a href="#" class="nav-link">
+                    <i class="fa-solid fa-fire"></i> <span>Trending</span>
+                </a>
+                <a href="#" class="nav-link">
+                    <i class="fa-solid fa-rss"></i> <span>Subscriptions</span>
+                </a>
+            </div>
+
+            <hr class="sidebar-divider">
+
+            <div class="sidebar-section">
+                <h4 class="sidebar-title">Library</h4>
+                <a href="#" class="nav-link">
+                    <i class="fa-solid fa-clock-rotate-left"></i> <span>History</span>
+                </a>
+                <a href="{% url 'dashboard' %}" class="nav-link">
+                    <i class="fa-solid fa-video"></i> <span>My Videos</span>
+                </a>
+                <a href="#" class="nav-link">
+                    <i class="fa-solid fa-heart"></i> <span>Liked Videos</span>
+                </a>
+            </div>
+
+            <hr class="sidebar-divider">
+            
+            <div class="sidebar-section">
+                 {% if request.session.user_email %}
+                    <a href="{% url 'logout' %}" class="nav-link logout">
+                        <i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span>
+                    </a>
+                 {% else %}
+                    <div class="sidebar-promo">
+                        <p>Join Cloud Stream to rate and upload.</p>
+                        <a href="{% url 'signup' %}" class="btn-outline-sm">Sign Up</a>
+                    </div>
+                 {% endif %}
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="content-area">
+            <!-- Messages -->
+            {% if messages %}
+                <div class="messages-container">
+                    {% for message in messages %}
+                        <div class="msg-card {{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div>
+
+    <!-- GLOBAL SCRIPTS -->
+    <script>
+        // Mouse Glow Logic
+        document.addEventListener('mousemove', (e) => {
+            const glow = document.querySelector('.mouse-glow');
+            // Move the center of the glow to the mouse position
+            glow.style.left = e.clientX + 'px';
+            glow.style.top = e.clientY + 'px';
+        });
+    </script>
+</body>
+</html>

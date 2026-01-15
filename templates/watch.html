@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{{ title }} - Cloud Stream{% endblock %}
+
+{% block content %}
+<div class="watch-container">
+    <!-- 1. THE PLAYER AREA (Left Column) -->
+    <div class="main-player-section">
+        <div class="video-wrapper">
+            <video id="mainPlayer" controls autoplay>
+                <source src="{{ video_url }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <div class="video-header">
+            <h1 class="video-title">{{ title }}</h1>
+            
+            <div class="video-toolbar">
+                <div class="creator-info">
+                    <div class="creator-avatar">
+                        {{ creator_email|slice:":1"|upper }}
+                    </div>
+                    <div class="creator-details">
+                        <span class="creator-name">{{ creator_email }}</span>
+                        <span class="sub-count" id="subCount">{{ sub_count }} subscribers</span>
+                    </div>
+                    <button id="subBtn" onclick="toggleSubscribe()" class="sub-button {% if is_subscribed %}subscribed{% endif %}">
+                        {% if is_subscribed %}Subscribed{% else %}Subscribe{% endif %}
+                    </button>
+                </div>
+
+                <div class="video-actions">
+                    <div class="action-group">
+                        <button id="likeBtn" onclick="sendReaction('LIKE')" class="action-btn {% if user_reaction == 'LIKE' %}active{% endif %}">
+                            <i class="fa-regular fa-thumbs-up"></i> <span id="likeCount">{{ likes }}</span>
+                        </button>
+                        <button id="dislikeBtn" onclick="sendReaction('DISLIKE')" class="action-btn {% if user_reaction == 'DISLIKE' %}active{% endif %}">
+                            <i class="fa-regular fa-thumbs-down"></i> <span id="dislikeCount">{{ dislikes }}</span>
+                        </button>
+                    </div>
+                    <button class="action-btn share-btn" onclick="copyShareLink()">
+                        <i class="fa-solid fa-share"></i> Share
+                    </button>
+                    
+                    <div class="speed-control">
+                        <select onchange="setSpeed(this.value)">
+                            <option value="0.5">0.5x</option>
+                            <option value="1.0" selected>Normal</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2.0">2.0x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="description-box">
+                <div class="desc-meta">
+                    <strong>{{ likes }} likes</strong> • Published just now
+                </div>
+                <p class="desc-text">{{ description|default:"This creator hasn't added a description yet." }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. SIDEBAR (Recommended Videos - Right Column) -->
+    <div class="secondary-section">
+        <h4 style="margin-bottom: 15px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Up Next</h4>
+        
+        <div class="sidebar-videos">
+            <!-- Iterate through other videos. In a real app, you'd filter out the current video in the View -->
+             <!-- We need to assume 'videos' list is available in context. If not, this section will be empty but formatted correctly. -->
+            {% for rec_video in videos %}
+                {% if rec_video.video_id != video_id %} <!-- Don't show current video -->
+                <a href="{% url 'watch_video' rec_video.video_id %}" class="sidebar-card">
+                    <div class="sidebar-thumb">
+                        {% if rec_video.thumbnail_key %}
+                            <img src="https://vinayfinalvidscloudstream.s3.amazonaws.com/{{ rec_video.thumbnail_key }}">
+                        {% else %}
+                             <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#222; color:#555;">▶</div>
+                        {% endif %}
+                    </div>
+                    <div class="sidebar-details">
+                        <span class="sidebar-title">{{ rec_video.title }}</span>
+                        <span class="sidebar-meta">Cloud Stream</span>
+                        <span class="sidebar-meta">{{ rec_video.created_at | time_ago }}</span>
+                    </div>
+                </a>
+                {% endif %}
+            {% empty %}
+                <p style="color: var(--text-muted); font-size: 13px;">No other videos found.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* PAGE LAYOUT */
+    .watch-container { 
+        display: flex; 
+        gap: 24px; 
+        max-width: 1600px; 
+        margin: 0 auto; 
+    }
+    .main-player-section { flex: 1; /* Takes remaining space */ min-width: 0; /* Prevents overflow */ }
+    .secondary-section { width: 350px; flex-shrink: 0; }
+
+    @media (max-width: 1000px) {
+        .watch-container { flex-direction: column; }
+        .secondary-section { width: 100%; }
+    }
+
+    /* PLAYER STYLES */
+    .video-wrapper { 
+        width: 100%; 
+        aspect-ratio: 16/9; 
+        background: #000; 
+        border-radius: 12px; 
+        overflow: hidden; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border: 1px solid var(--border);
+    }
+    video { width: 100%; height: 100%; outline: none; display: block; }
+
+    .video-header { margin-top: 15px; }
+    .video-title { font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 15px; }
+
+    .video-toolbar { 
+        display: flex; justify-content: space-between; align-items: flex-start; 
+        flex-wrap: wrap; gap: 20px; margin-bottom: 20px;
+    }
+
+    /* CREATOR INFO */
+    .creator-info { display: flex; align-items: center; gap: 12px; }
+    .creator-avatar { 
+        width: 40px; height: 40px; 
+        background: linear-gradient(135deg, var(--primary), #00aaff); color: black;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: 800;
+        box-shadow: 0 0 10px rgba(0, 242, 234, 0.2);
+    }
+    .creator-details { display: flex; flex-direction: column; }
+    .creator-name { font-weight: 600; font-size: 15px; color: var(--text-main); }
+    .sub-count { font-size: 12px; color: var(--text-muted); }
+
+    .sub-button {
+        margin-left: 10px; padding: 8px 20px; border-radius: 20px; border: none;
+        background: var(--text-main); color: #000; font-weight: 700; cursor: pointer;
+        transition: 0.2s;
+    }
+    .sub-button:hover { background: #e0e0e0; }
+    .sub-button.subscribed { background: var(--bg-hover); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* ACTION BUTTONS */
+    .video-actions { display: flex; gap: 10px; align-items: center; }
+    .action-group { background: var(--bg-hover); border-radius: 20px; display: flex; overflow: hidden; border: 1px solid var(--border); }
+    
+    .action-btn { 
+        background: var(--bg-hover); border: none; color: var(--text-main); 
+        padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px;
+        transition: 0.2s;
+    }
+    .action-btn:hover { background: #333; }
+    .action-btn.active { color: var(--primary); }
+    .action-btn.active i { filter: drop-shadow(0 0 5px var(--primary)); }
+    
+    .share-btn { border-radius: 20px; border: 1px solid var(--border); }
+
+    .speed-control select {
+        background: var(--bg-hover); color: white; border: 1px solid var(--border); 
+        padding: 8px; border-radius: 8px; outline: none; cursor: pointer;
+    }
+
+    /* DESCRIPTION */
+    .description-box { 
+        background: var(--bg-hover); padding: 16px; border-radius: 12px; font-size: 14px; line-height: 1.5;
+        border: 1px solid var(--border);
+    }
+    .desc-meta { font-weight: 700; margin-bottom: 8px; font-size: 13px; }
+    .desc-text { color: var(--text-main); white-space: pre-wrap; }
+
+    /* SIDEBAR VIDEOS */
+    .sidebar-videos { display: flex; flex-direction: column; gap: 10px; }
+    .sidebar-card { display: flex; gap: 10px; text-decoration: none; transition: 0.2s; border-radius: 8px; padding: 8px; }
+    .sidebar-card:hover { background: var(--bg-hover); }
+    
+    .sidebar-thumb { 
+        width: 168px; height: 94px; background: #222; border-radius: 8px; 
+        overflow: hidden; flex-shrink: 0; position: relative;
+    }
+    .sidebar-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .sidebar-details { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+    .sidebar-title { 
+        font-size: 14px; font-weight: 600; color: var(--text-main); 
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .sidebar-meta { font-size: 12px; color: var(--text-muted); }
+
+</style>
+
+<script>
+    function setSpeed(rate) { document.getElementById("mainPlayer").playbackRate = rate; }
+    
+    function copyShareLink() {
+        navigator.clipboard.writeText(window.location.href);
+        // Optional: Show a custom toast notification here instead of alert
+        alert("Link copied to clipboard!");
+    }
+
+    // --- RE-USE YOUR EXISTING LOGIC ---
+    async function toggleSubscribe() {
+        const btn = document.getElementById('subBtn');
+        const countLabel = document.getElementById('subCount');
+        const creatorEmail = "{{ creator_email }}"; 
+        
+        try {
+            const response = await fetch('/api/subscribe/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creator_email: creatorEmail })
+            });
+            
+            if (response.status === 403) { alert("Please login to subscribe!"); window.location.href = "/login/"; return; }
+
+            const data = await response.json();
+            if (data.error) { alert(data.error); return; }
+            
+            if (data.subscribed) {
+                btn.innerText = "Subscribed";
+                btn.classList.add('subscribed');
+            } else {
+                btn.innerText = "Subscribe";
+                btn.classList.remove('subscribed');
+            }
+            countLabel.innerText = data.new_count + " subscribers";
+
+        } catch (err) { console.error(err); }
+    }
+
+    async function sendReaction(action) {
+        const likeBtn = document.getElementById('likeBtn');
+        const dislikeBtn = document.getElementById('dislikeBtn');
+        const likeCountLabel = document.getElementById('likeCount');
+        const dislikeCountLabel = document.getElementById('dislikeCount');
+        
+        // Determine current state
+        let currentAction = "NONE"; 
+        if (likeBtn.classList.contains('active')) currentAction = 'LIKE';
+        if (dislikeBtn.classList.contains('active')) currentAction = 'DISLIKE';
+        
+        // Toggle logic
+        let finalAction = action;
+        if (currentAction === action) finalAction = 'NONE'; 
+
+        try {
+            // Need to ensure we get the ID correctly. 
+            // Method A: Split URL
+            const videoId = window.location.pathname.split('/')[2];
+
+            const response = await fetch('/api/reaction/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    video_id: videoId,
+                    creator_email: "{{ creator_email }}",
+                    action: finalAction
+                })
+            });
+
+            if (response.status === 403) { alert("Please login to vote!"); return; }
+
+            const data = await response.json();
+            
+            // Update UI
+            likeCountLabel.innerText = data.likes;
+            dislikeCountLabel.innerText = data.dislikes;
+            
+            likeBtn.classList.remove('active');
+            dislikeBtn.classList.remove('active');
+            
+            if (finalAction === 'LIKE') likeBtn.classList.add('active');
+            if (finalAction === 'DISLIKE') dislikeBtn.classList.add('active');
+
+        } catch (err) { console.error(err); }
+    }
+</script>
+{% endblock %}

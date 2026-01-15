@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+{% load static %}
+
+{% block title %}{{ channel_name }} - Studio{% endblock %}
+
+{% block content %}
+<style>
+    /* --- STUDIO SPECIFIC STYLES --- */
+    
+    /* Header */
+    .studio-header {
+        display: flex; justify-content: space-between; align-items: flex-end;
+        margin-bottom: 30px;
+    }
+    .channel-info h1 { font-size: 28px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
+    .channel-info span { color: var(--text-muted); font-size: 14px; }
+
+    /* Upload Zone - Drag & Drop Style */
+    .upload-zone {
+        background: var(--bg-card);
+        border: 2px dashed var(--border);
+        border-radius: 16px;
+        padding: 40px;
+        text-align: center;
+        transition: 0.3s ease;
+        margin-bottom: 50px;
+        position: relative;
+    }
+    .upload-zone:hover {
+        border-color: var(--primary);
+        background: rgba(0, 242, 234, 0.03);
+        box-shadow: 0 0 30px rgba(0, 242, 234, 0.05);
+    }
+    .upload-icon { 
+        font-size: 50px; color: var(--primary); 
+        margin-bottom: 20px; 
+        filter: drop-shadow(0 0 10px rgba(0,242,234,0.4));
+    }
+    
+    /* Form Elements */
+    .form-group { margin-bottom: 20px; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .form-group label { 
+        display: block; color: var(--text-muted); margin-bottom: 8px; 
+        font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    
+    .form-input { 
+        width: 100%; background: var(--bg-hover); border: 1px solid var(--border); 
+        color: white; padding: 14px; border-radius: 8px; outline: none; transition: 0.2s;
+        font-family: 'Inter', sans-serif;
+    }
+    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,242,234,0.1); }
+    
+    .file-input {
+        padding: 10px;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    .file-input::-webkit-file-upload-button {
+        background: #333; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;
+    }
+
+    /* Terminal Style Log */
+    #log { 
+        background: #000; padding: 20px; border-radius: 8px; 
+        font-family: 'Courier New', monospace; font-size: 13px; color: #0f0; 
+        margin-top: 25px; display: none; text-align: left; border: 1px solid #333;
+    }
+
+    /* Video List Enhancements */
+    .section-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; padding-left: 5px; border-left: 4px solid var(--primary); padding-left: 15px; }
+
+    .status-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase;
+        position: absolute; top: 12px; right: 12px; z-index: 10;
+        backdrop-filter: blur(4px);
+    }
+    .status-READY { background: rgba(0, 0, 0, 0.6); color: #10B981; border: 1px solid #10B981; }
+    .status-PROCESSING { background: rgba(0, 0, 0, 0.6); color: #F59E0B; border: 1px solid #F59E0B; }
+
+    .action-row { display: flex; gap: 10px; margin-top: 15px; }
+    .btn-icon-sm {
+        background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+        padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: 0.2s;
+    }
+    .btn-icon-sm:hover { border-color: var(--text-main); color: var(--text-main); }
+    .btn-delete:hover { border-color: var(--secondary); color: var(--secondary); }
+
+</style>
+
+<!-- HEADER -->
+<div class="studio-header">
+    <div class="channel-info">
+        <h1>{{ channel_name }}</h1>
+        <span>{{ email }} • Creator Studio</span>
+    </div>
+</div>
+
+<!-- UPLOAD ZONE -->
+<div class="upload-zone">
+    <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+    <h3 style="margin-bottom: 30px; font-weight: 600;">Create Content</h3>
+    
+    <div class="form-group">
+        <label>Video Title</label>
+        <input type="text" id="videoTitle" class="form-input" placeholder="e.g. My Awesome Gameplay">
+    </div>
+
+    <div class="form-group" style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label>Video File (MP4/WebM)</label>
+            <input type="file" id="fileInput" accept="video/*" class="form-input file-input">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label>Custom Thumbnail (Optional)</label>
+            <input type="file" id="thumbInput" accept="image/*" class="form-input file-input">
+        </div>
+    </div>
+
+    <button onclick="startUpload()" class="btn-primary" style="width: 100%; max-width: 200px; margin-top: 10px;">
+        Upload Video
+    </button>
+    
+    <!-- Hidden Elements for Thumbnail Generation -->
+    <video id="hiddenVideo" style="display:none"></video>
+    <canvas id="hiddenCanvas" style="display:none"></canvas>
+
+    <!-- Terminal Log -->
+    <div id="log"></div>
+</div>
+
+<!-- VIDEO CONTENT LIST -->
+<h2 class="section-title">Your Content</h2>
+
+<div class="video-grid">
+    {% for video in videos %}
+    <div class="video-card">
+        <a href="{% url 'watch_video' video.video_id %}" class="thumb">
+            {% if video.thumbnail_key %}
+                <img src="https://vinayfinalvidscloudstream.s3.amazonaws.com/{{ video.thumbnail_key }}">
+            {% else %}
+                <span style="font-size: 2em; color: #333;">▶️</span>
+            {% endif %}
+            
+            <!-- Status Badge -->
+            <span class="status-badge status-{{ video.status }}">
+                {% if video.status == 'READY' %}
+                    <i class="fa-solid fa-check"></i> Live
+                {% else %}
+                    <i class="fa-solid fa-spinner fa-spin"></i> Processing
+                {% endif %}
+            </span>
+        </a>
+        
+        <div class="card-details">
+            <a href="{% url 'watch_video' video.video_id %}" class="card-title">{{ video.title }}</a>
+            <div class="card-meta">
+                <span>{{ video.created_at | time_ago }}</span>
+            </div>
+            
+            <!-- Management Buttons -->
+            <div class="action-row">
+                <button class="btn-icon-sm" title="Edit Details"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-icon-sm" title="Analytics"><i class="fa-solid fa-chart-simple"></i></button>
+                <button class="btn-icon-sm btn-delete" title="Delete Video"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+        <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">
+            No videos found. Use the upload box above to get started!
+        </p>
+    {% endfor %}
+</div>
+
+<!-- UPLOAD LOGIC PRESERVED -->
+<script>
+    function log(msg) { 
+        const logBox = document.getElementById('log');
+        logBox.style.display = 'block';
+        logBox.innerText += "> " + msg + "\n"; 
+    }
+
+    async function startUpload() {
+        const fileInput = document.getElementById('fileInput');
+        const thumbInput = document.getElementById('thumbInput');
+        const titleInput = document.getElementById('videoTitle');
+        const videoFile = fileInput.files[0];
+        const customThumbFile = thumbInput.files[0];
+
+        if (!videoFile) { alert("Please select a video!"); return; }
+
+        log("Initializing upload sequence...");
+
+        // STEP A: Get/Generate Thumbnail Blob
+        let thumbBlob = null;
+        
+        if (customThumbFile) {
+            log("Processing custom thumbnail...");
+            thumbBlob = customThumbFile;
+        } else {
+            log("Extracting frame from video source...");
+            try {
+                thumbBlob = await generateThumbnail(videoFile);
+                log("Thumbnail extracted successfully.");
+            } catch (e) {
+                log("Thumbnail extraction failed: " + e);
+            }
+        }
+
+        // STEP B: Get Upload URLs from Django
+        log("Requesting secure upload tokens...");
+        const response = await fetch('/get-upload-url/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: titleInput.value || "Untitled",
+                filename: videoFile.name,
+                file_type: videoFile.type
+            })
+        });
+
+        if (!response.ok) { log("Error: Server refused connection."); return; }
+        const data = await response.json();
+
+        // STEP C: Upload Thumbnail
+        if (thumbBlob) {
+            log("Uploading thumbnail artifact...");
+            await fetch(data.thumb_upload_url, {
+                method: 'PUT',
+                body: thumbBlob,
+                headers: { 'Content-Type': 'image/jpeg' }
+            });
+        }
+
+        // STEP D: Upload Video
+        log("Uploading video payload to Raw Storage...");
+        await fetch(data.video_upload_url, {
+            method: 'PUT',
+            body: videoFile,
+            headers: { 'Content-Type': videoFile.type }
+        });
+
+        log("UPLOAD COMPLETE. Syncing database...");
+        setTimeout(() => window.location.reload(), 2000);
+    }
+
+    // Helper: Generates an image blob from the first frame
+    function generateThumbnail(file) {
+        return new Promise((resolve, reject) => {
+            const video = document.getElementById('hiddenVideo');
+            const canvas = document.getElementById('hiddenCanvas');
+            const ctx = canvas.getContext('2d');
+
+            video.src = URL.createObjectURL(file);
+            
+            video.onloadeddata = () => { video.currentTime = 0.5; };
+
+            video.onseeked = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                    URL.revokeObjectURL(video.src);
+                }, 'image/jpeg', 0.8);
+            };
+
+            video.onerror = (e) => reject("Codec error");
+        });
+    }
+</script>
+{% endblock %}
