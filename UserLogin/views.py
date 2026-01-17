@@ -34,7 +34,7 @@ def login_view(request):
             # CREATE SESSION (This logs them in)
             request.session['user_email'] = email
             request.session['channel_name'] = user['channel_name']
-            return redirect('dashboard') # We will make this page next
+            return redirect('home') # We will make this page next
         else:
             messages.error(request, "Invalid email or password")
             

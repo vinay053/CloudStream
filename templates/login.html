@@ -1,16 +1,417 @@
-<h2>Login</h2>
-{% if messages %}
-    {% for message in messages %}<p style="color:red">{{ message }}</p>{% endfor %}
-{% endif %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Cloud Stream</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Link to your Global CSS for variables -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
 
-<form method="POST">
-    {% csrf_token %}
-    <label>Email:</label><br>
-    <input type="email" name="email" required><br>
-    
-    <label>Password:</label><br>
-    <input type="password" name="password" required><br><br>
-    
-    <button type="submit">Login</button>
-</form>
-<p>New here? <a href="{% url 'signup' %}">Create an account</a></p>
+    <style>
+        /* Standalone Page Override */
+        body {
+            background-color: var(--bg-main);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* No scrolling */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Vignette for depth */
+        body::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, transparent 40%, #000 120%);
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        /* Abstract Background Animation Canvas */
+        #bgCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* Top Navigation Bar */
+        .landing-nav {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 30px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 20; /* Above everything */
+        }
+
+        .nav-brand {
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+            text-shadow: 0 0 20px rgba(0, 242, 234, 0.3);
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+        
+        .nav-btn {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 15px;
+            transition: 0.3s;
+            text-decoration: none;
+        }
+        .nav-btn:hover { color: white; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        
+        .nav-btn-primary {
+            color: var(--primary);
+            border: 1px solid rgba(0, 242, 234, 0.3);
+            padding: 10px 24px;
+            border-radius: 30px;
+            background: rgba(0, 242, 234, 0.05);
+            backdrop-filter: blur(5px);
+        }
+        .nav-btn-primary:hover {
+            background: rgba(0, 242, 234, 0.15);
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(0, 242, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* The Auth Card */
+        .auth-container {
+            position: relative;
+            z-index: 10; /* Above canvas */
+            width: 100%;
+            max-width: 420px;
+            padding: 40px;
+            background: rgba(20, 20, 20, 0.65); /* Semi-transparent dark */
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid rgba(255, 255, 255, 0.15); /* Highlight top */
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            animation: floatUp 0.8s ease-out;
+        }
+
+        /* Subtle glow behind the card */
+        .auth-container::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px; height: 300px;
+            background: var(--primary);
+            filter: blur(100px);
+            opacity: 0.15;
+            z-index: -1;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        @keyframes floatUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Logo Area */
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .auth-logo {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary), #00aaff);
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: black;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 242, 234, 0.3);
+            animation: floatLogo 3s ease-in-out infinite;
+        }
+        
+        @keyframes floatLogo {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .auth-header h2 { font-size: 26px; font-weight: 800; color: white; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .auth-header p { color: var(--text-muted); font-size: 14px; }
+
+        /* Form Styling */
+        .form-group { margin-bottom: 20px; }
+        .form-label { 
+            display: block; color: var(--text-main); font-size: 13px; font-weight: 600; 
+            margin-bottom: 8px; margin-left: 4px;
+        }
+        
+        .input-wrapper { position: relative; }
+        .input-icon {
+            position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+            color: #555; font-size: 14px; transition: 0.3s;
+        }
+        
+        .auth-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 14px 14px 14px 44px; /* Space for icon */
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .auth-input:focus {
+            border-color: var(--primary);
+            background: rgba(0, 242, 234, 0.05);
+            box-shadow: 0 0 20px rgba(0, 242, 234, 0.15);
+            transform: scale(1.02);
+        }
+        .auth-input:focus + .input-icon { color: var(--primary); }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary), #00aaff);
+            color: black;
+            font-weight: 800;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 242, 234, 0.4);
+            background: linear-gradient(90deg, #00c7c0, #0099e6);
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        .auth-link { color: var(--primary); font-weight: 600; transition: 0.2s; position: relative; }
+        .auth-link:hover { text-shadow: 0 0 8px var(--primary); }
+    </style>
+</head>
+<body>
+
+    <!-- Background Animation -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Top Navigation Bar -->
+    <nav class="landing-nav">
+        <a href="{% url 'home' %}" class="nav-brand">
+            <i class="fa-solid fa-play" style="color: var(--primary);"></i> Cloud Stream
+        </a>
+        <div class="nav-links">
+            <a href="{% url 'home' %}" class="nav-btn">Home</a>
+            <a href="#" class="nav-btn">Features</a>
+            <a href="{% url 'signup' %}" class="nav-btn nav-btn-primary">Sign Up</a>
+        </div>
+    </nav>
+
+    <!-- Login Card -->
+    <div class="auth-container">
+        <div class="auth-header">
+            <!-- New Icon: Fingerprint for tech/security vibe -->
+            <div class="auth-logo">
+                <i class="fa-solid fa-fingerprint"></i>
+            </div>
+            <h2>Welcome Back</h2>
+            <p>Login to access your studio and content.</p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div style="background: rgba(255, 0, 85, 0.1); color: #ff0055; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; text-align: center; border: 1px solid rgba(255,0,85,0.3);">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <div class="input-wrapper">
+                    <input type="email" name="email" class="auth-input" placeholder="you@example.com" required>
+                    <i class="fa-regular fa-envelope input-icon"></i>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <div class="input-wrapper">
+                    <input type="password" name="password" class="auth-input" placeholder="••••••••" required>
+                    <i class="fa-solid fa-lock input-icon"></i>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-submit">Login</button>
+        </form>
+
+        <div class="auth-footer">
+            New here? <a href="{% url 'signup' %}" class="auth-link">Create an account</a>
+        </div>
+    </div>
+
+    <!-- Enhanced Animation Script (Minimal Push) -->
+    <script>
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let particles = [];
+        // Mouse tracking with minimal radius
+        let mouse = { x: null, y: null, radius: 100 };
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 2 + 1;
+                this.baseX = this.x;
+                this.baseY = this.y;
+                // Reduced density for minimal push effect
+                this.density = (Math.random() * 5) + 1;
+                this.color = `rgba(0, 242, 234, ${Math.random() * 0.5 + 0.2})`; 
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Mouse Interaction
+                if (mouse.x != null) {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < mouse.radius) {
+                        const forceDirectionX = dx / distance;
+                        const forceDirectionY = dy / distance;
+                        const maxDistance = mouse.radius;
+                        const force = (maxDistance - distance) / maxDistance;
+                        const directionX = forceDirectionX * force * this.density;
+                        const directionY = forceDirectionY * force * this.density;
+                        
+                        // Push away lightly
+                        this.x -= directionX;
+                        this.y -= directionY;
+                    }
+                }
+
+                // Wrap around screen
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                
+                // Add Glow
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = "rgba(0, 242, 234, 0.5)";
+                
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function init() {
+            particles = [];
+            let numberOfParticles = (width * height) / 7000; // Responsive count
+            for (let i = 0; i < numberOfParticles; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw connecting lines
+            ctx.lineWidth = 0.5;
+            
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                p.update();
+                p.draw();
+
+                for (let j = i; j < particles.length; j++) {
+                    let p2 = particles[j];
+                    let dx = p.x - p2.x;
+                    let dy = p.y - p2.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(0, 242, 234, ${1 - dist/120})`;
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', () => { resize(); init(); });
+        resize();
+        init();
+        animate();
+    </script>
+</body>
+</html>

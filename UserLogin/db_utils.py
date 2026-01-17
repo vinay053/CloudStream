@@ -16,23 +16,23 @@ def get_table():
     )
     return dynamodb.Table(settings.DYNAMO_TABLE)
 
-def create_user(email, password, channel_name):
+def create_user(email, password, channel_name, logo_key=None):
     table = get_table()
     
-    # Check if user already exists
     response = table.get_item(Key={'PK': f"USER#{email}", 'SK': 'PROFILE'})
     if 'Item' in response:
         return False, "User already exists"
 
-    # Hash the password
     hashed_password = make_password(password)
 
     item = {
         'PK': f"USER#{email}",
         'SK': 'PROFILE',
         'channel_name': channel_name,
-        'password': hashed_password, # Safe!
-        'joined_at': int(time.time())
+        'password': hashed_password,
+        'logo_key': logo_key, # <--- Storing the logo here
+        'joined_at': int(time.time()),
+        'subscribers': 0 # Initialize subscriber count
     }
     table.put_item(Item=item)
     return True, "User created successfully"
