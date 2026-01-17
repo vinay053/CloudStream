@@ -264,9 +264,9 @@
             {% endfor %}
         {% endif %}
 
-        <form method="POST">
+        <!-- Added enctype for file upload -->
+        <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
-            
             <div class="form-group">
                 <label class="form-label">Email Address</label>
                 <div class="input-wrapper">
@@ -274,7 +274,6 @@
                     <i class="fa-regular fa-envelope input-icon"></i>
                 </div>
             </div>
-            
             <div class="form-group">
                 <label class="form-label">Channel Name</label>
                 <div class="input-wrapper">
@@ -282,7 +281,13 @@
                     <i class="fa-solid fa-hashtag input-icon"></i>
                 </div>
             </div>
-            
+            <div class="form-group">
+                <label class="form-label">Profile Picture (Optional)</label>
+                <div class="input-wrapper">
+                    <input type="file" name="profile_pic" class="auth-input file-input" accept="image/*">
+                    <i class="fa-regular fa-image input-icon"></i>
+                </div>
+            </div>
             <div class="form-group">
                 <label class="form-label">Password</label>
                 <div class="input-wrapper">
@@ -290,7 +295,6 @@
                     <i class="fa-solid fa-lock input-icon"></i>
                 </div>
             </div>
-            
             <button type="submit" class="btn-submit">Sign Up</button>
         </form>
 

@@ -29,7 +29,7 @@ def get_upload_url(request):
             original_filename = data.get('filename')
             file_type = data.get('file_type')
             channel=request.session['channel_name']
-            
+            avatar_key = request.session.get('avatar_key')
             # 1. Sanitize Filename (Fixes the "Space/Colon" bug)
             # Turns "My Video: 2026.mp4" -> "My_Video__2026.mp4"
             clean_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', original_filename)
@@ -41,7 +41,7 @@ def get_upload_url(request):
 
             # 3. Save to DB (Includes Thumbnail Key now)
             # Ensure your db_utils.py is updated to accept this extra argument!
-            create_video_entry(user_email, title, video_s3_key, thumb_s3_key,channel)
+            create_video_entry(user_email, title, video_s3_key, thumb_s3_key,channel,avatar_key)
             
             # 4. Generate TWO Presigned URLs
             

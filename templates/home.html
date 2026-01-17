@@ -162,18 +162,27 @@
 
         <!-- 2. Info Row -->
         <div class="video-info">
-            <!-- Avatar Slot -->
-            <a href="#" class="creator-avatar" title="View Channel">
+        <!-- Avatar Slot -->
+        <a href="#" class="creator-avatar" title="View Channel">
+            {% if video.creator_avatar_key %}
+                <!-- Use the bucket URL structure -->
+                <img src="https://vinayfinalvidscloudstream.s3.amazonaws.com/{{ video.creator_avatar_key }}" 
+                     alt="{{ video.channel_name }}" 
+                     style="width:100%; height:100%; object-fit:cover; border-radius:50%;">
+            {% else %}
+                <!-- Default Icon -->
                 <i class="fa-solid fa-user"></i>
-            </a>
+            {% endif %}
+        </a>
 
-            <!-- Text Data -->
-            <div class="text-content">
-                <a href="{% url 'watch_video' video.video_id %}" class="video-title">
-                    {{ video.title }}
-                </a>
-                
-                <a href="#" class="channel-name">
+        <!-- Text Data -->
+        <div class="text-content">
+            <a href="{% url 'watch_video' video.video_id %}" class="video-title">
+                {{ video.title }}
+            </a>
+            
+            <a href="#" class="channel-name">
+                {{ video.channel_name }}
                     User Channel
                     <i class="fa-solid fa-circle-check" style="font-size: 10px; color: #888;" title="Verified"></i>
                 </a>

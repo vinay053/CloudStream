@@ -5,6 +5,7 @@ from django.contrib.auth.hashers import make_password, check_password
 import uuid
 import time
 import os
+from .s3_utils import upload_public_file
 
 def get_table():
     dynamodb = boto3.resource(
@@ -16,24 +17,50 @@ def get_table():
     )
     return dynamodb.Table(settings.DYNAMO_TABLE)
 
-def create_user(email, password, channel_name, logo_key=None):
+def create_user(email, password, channel_name, profile_pic=None):
     table = get_table()
     
+    # Check if user already exists
     response = table.get_item(Key={'PK': f"USER#{email}", 'SK': 'PROFILE'})
     if 'Item' in response:
         return False, "User already exists"
 
+    # Hash the password
     hashed_password = make_password(password)
+
+    # Handle Profile Picture
+    avatar_key = None # Default to None (null in DB)
+    
+    if profile_pic:
+        # 1. Generate a clean, unique filename
+        file_ext = profile_pic.name.split('.')[-1]
+        unique_id = str(uuid.uuid4())[:8]
+        key = f"avatars/{email}_{unique_id}.{file_ext}"
+        
+        # 2. Upload to S3 using our helper
+        # We pass the file object, the desired key, and the bucket
+        uploaded_url = upload_public_file(
+            profile_pic, 
+            key, 
+            settings.AWS_PROCESSED_BUCKET, 
+            content_type=profile_pic.content_type
+        )
+        
+        # 3. If upload succeeded, save THE KEY (String) to avatar_key
+        if uploaded_url:
+            avatar_key = key 
 
     item = {
         'PK': f"USER#{email}",
         'SK': 'PROFILE',
+        'email': email,
         'channel_name': channel_name,
         'password': hashed_password,
-        'logo_key': logo_key, # <--- Storing the logo here
         'joined_at': int(time.time()),
-        'subscribers': 0 # Initialize subscriber count
+        'avatar_key': avatar_key, # Saves the STRING 'avatars/...' or NULL
+        'subscribers': 0 # Initialize sub count
     }
+    
     table.put_item(Item=item)
     return True, "User created successfully"
 
@@ -58,23 +85,25 @@ def get_user(email):
     response = table.get_item(Key={'PK': f"USER#{email}", 'SK': 'PROFILE'})
     return response.get('Item')
 
-def create_video_entry(email, title, filename, thumbnail_key,channel, description=""): 
+def create_video_entry(email, title, video_key, thumb_key, channel_name, avatar_key=None):
     table = get_table()
     video_id = str(uuid.uuid4())
     
     item = {
         'PK': f"USER#{email}",
         'SK': f"VIDEO#{video_id}",
-        'title': title,
-        'description': description,
-        'raw_s3_key': filename,
-        'channel_name':channel,
-        # NEW FIELD: The public location of the thumbnail
-        'thumbnail_key': thumbnail_key, 
-        
-        'status': 'PROCESSING',
         'video_id': video_id,
-        'created_at': int(time.time())
+        'title': title,
+        'video_s3_key': video_key,
+        'thumbnail_key': thumb_key, # This is the video thumbnail
+        'channel_name': channel_name,
+        'creator_avatar_key': avatar_key, # This is the user's profile pic!
+        'status': 'PROCESSING', # or UPLOADING
+        'created_at': int(time.time()),
+        'type': 'VIDEO',
+        'likes': 0,
+        'dislikes': 0,
+        'views': 0
     }
     table.put_item(Item=item)
     return video_id
